@@ -3,18 +3,29 @@
  * Builds custom prompts using user configuration
  */
 
-import { PROMPT_TEMPLATE } from '../prompts/template.js';
+import { DEMO_TEMPLATE } from '../prompts/templates/demo-template.js';
+import { CLIENT_TEMPLATE } from '../prompts/templates/client-template.js';
 import { logger } from '../utils/logger.js';
 
 const promptLogger = logger.child('PROMPT');
 
+// Demo phone number
+const DEMO_PHONE_NUMBER = '+18443874488';
+
 /**
  * Build a custom prompt from template using user configuration
  * @param {Object} userConfig - User configuration from database
+ * @param {string} templateType - 'demo' or 'client' (optional, auto-detects from phone)
  * @returns {string} Customized prompt
  */
-export function buildPrompt(userConfig) {
-  let prompt = PROMPT_TEMPLATE;
+export function buildPrompt(userConfig, templateType = null) {
+  // Auto-detect template type if not specified
+  if (!templateType) {
+    templateType = userConfig.twilio_phone_number === DEMO_PHONE_NUMBER ? 'demo' : 'client';
+  }
+
+  // Select appropriate template
+  let prompt = templateType === 'demo' ? DEMO_TEMPLATE : CLIENT_TEMPLATE;
 
   // Replace business name
   prompt = prompt.replace(
@@ -45,6 +56,7 @@ export function buildPrompt(userConfig) {
   // This is done in the conversation handler, not here
 
   promptLogger.info('Prompt built', {
+    templateType,
     businessName: userConfig.business_name,
     industry: userConfig.industry,
     serviceTypesCount: userConfig.service_types?.length || 0,

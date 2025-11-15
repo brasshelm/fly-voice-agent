@@ -13,6 +13,9 @@ import { getMetrics } from './services/metrics.js';
 import { testConnection } from './db/neon.js';
 import { logger } from './utils/logger.js';
 import { handleTwilioRouter } from './api/twilio/router.js';
+import { requireAdminApiKey } from './api/admin/middleware.js';
+import { getPrompts, updateDemoTemplate, updateClientTemplate } from './api/admin/prompts.js';
+import { getUsers, getUser, updateUser, previewPrompt } from './api/admin/users.js';
 
 const serverLogger = logger.child('SERVER');
 
@@ -112,6 +115,20 @@ app.get('/metrics', (req, res) => {
 app.post('/api/twilio/router', handleTwilioRouter);
 
 /**
+ * Admin API endpoints (protected with API key)
+ */
+// Prompts management
+app.get('/api/admin/prompts', requireAdminApiKey, getPrompts);
+app.put('/api/admin/prompts/demo', requireAdminApiKey, updateDemoTemplate);
+app.put('/api/admin/prompts/client', requireAdminApiKey, updateClientTemplate);
+
+// Users management
+app.get('/api/admin/users', requireAdminApiKey, getUsers);
+app.get('/api/admin/users/:userId', requireAdminApiKey, getUser);
+app.put('/api/admin/users/:userId', requireAdminApiKey, updateUser);
+app.get('/api/admin/users/:userId/preview', requireAdminApiKey, previewPrompt);
+
+/**
  * Root endpoint
  */
 app.get('/', (req, res) => {
@@ -125,6 +142,8 @@ app.get('/', (req, res) => {
       metrics: '/metrics (requires API key)',
       twilio_router: '/api/twilio/router',
       websocket: 'wss://[your-app].fly.dev/stream',
+      admin_prompts: '/api/admin/prompts (requires API key)',
+      admin_users: '/api/admin/users (requires API key)',
     },
   });
 });
