@@ -24,6 +24,7 @@
     "@deepgram/sdk": "^3.4.0",
     "@google/generative-ai": "^0.21.0",
     "@neondatabase/serverless": "^0.9.0",
+    "cors": "^2.8.5",
     "express": "^4.18.2",
     "groq-sdk": "^0.7.0",
     "ws": "^8.16.0"

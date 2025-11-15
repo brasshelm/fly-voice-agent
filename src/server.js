@@ -7,6 +7,7 @@
  */
 
 import express from 'express';
+import cors from 'cors';
 import { WebSocketServer } from 'ws';
 import { handleTwilioStream } from './services/twilio-handler.js';
 import { getMetrics } from './services/metrics.js';
@@ -21,6 +22,18 @@ const serverLogger = logger.child('SERVER');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
+
+// CORS Configuration - Allow requests from LeadSaveAI admin dashboard
+app.use(cors({
+  origin: [
+    'https://app.leadsaveai.com',
+    'http://localhost:3000', // For local development
+    'https://leadsaveai.com'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key']
+}));
 
 // Middleware
 app.use(express.json());
