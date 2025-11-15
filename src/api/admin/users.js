@@ -109,22 +109,31 @@ export async function updateUser(req, res) {
       return res.status(400).json({ error: 'business_qa must be an object' });
     }
 
-    // Update business_config table (source of truth)
+    // Upsert business_config table (source of truth)
     const result = await sql`
-      UPDATE leadsaveai.business_config
-      SET
-        business_name = ${business_name},
-        industry = ${industry},
-        services_offered = ${JSON.stringify(service_types || [])},
-        common_faqs = ${JSON.stringify(business_qa || {})},
-        special_instructions = ${callback_window || 'soon'},
+      INSERT INTO leadsaveai.business_config (
+        user_id, business_name, industry, services_offered,
+        common_faqs, special_instructions, updated_at
+      )
+      VALUES (
+        ${userId}, ${business_name}, ${industry},
+        ${JSON.stringify(service_types || [])},
+        ${JSON.stringify(business_qa || {})},
+        ${callback_window || 'soon'}, NOW()
+      )
+      ON CONFLICT (user_id)
+      DO UPDATE SET
+        business_name = EXCLUDED.business_name,
+        industry = EXCLUDED.industry,
+        services_offered = EXCLUDED.services_offered,
+        common_faqs = EXCLUDED.common_faqs,
+        special_instructions = EXCLUDED.special_instructions,
         updated_at = NOW()
-      WHERE user_id = ${userId}
       RETURNING *
     `;
 
     if (result.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(500).json({ error: 'Failed to save configuration' });
     }
 
     // Handle notification contacts (phone and email)
