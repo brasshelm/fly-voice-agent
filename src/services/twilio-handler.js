@@ -207,8 +207,9 @@ export async function handleTwilioStream(ws) {
         timestamp: new Date().toISOString(),
       });
 
-      // Generate audio
-      const audioBuffer = await cartesia.generateAudio(text);
+      // Generate audio with user's selected voice
+      const voiceId = userConfig?.ai_voice_id || null; // Falls back to CartesiaService default if null
+      const audioBuffer = await cartesia.generateAudio(text, voiceId);
 
       // Send to Twilio
       const base64Audio = audioBuffer.toString('base64');

@@ -17,7 +17,7 @@ export async function getUserByPhone(twilioNumber) {
     dbLogger.info('Looking up user by phone', { phone: twilioNumber });
 
     const result = await sql`
-      SELECT * FROM leadsaveai.users
+      SELECT * FROM leadsaveai.user_voice_config
       WHERE twilio_phone_number = ${twilioNumber}
       LIMIT 1
     `;
@@ -31,6 +31,7 @@ export async function getUserByPhone(twilioNumber) {
     dbLogger.info('User found', {
       userId: user.user_id,
       businessName: user.business_name,
+      voiceId: user.ai_voice_id,
     });
 
     return user;

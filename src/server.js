@@ -17,6 +17,7 @@ import { handleTwilioRouter } from './api/twilio/router.js';
 import { requireAdminApiKey } from './api/admin/middleware.js';
 import { getPrompts, updateDemoTemplate, updateClientTemplate } from './api/admin/prompts.js';
 import { getUsers, getUser, updateUser, previewPrompt } from './api/admin/users.js';
+import { lookupVoice, previewVoice } from './api/admin/voices.js';
 
 const serverLogger = logger.child('SERVER');
 
@@ -140,6 +141,10 @@ app.get('/api/admin/users', requireAdminApiKey, getUsers);
 app.get('/api/admin/users/:userId', requireAdminApiKey, getUser);
 app.put('/api/admin/users/:userId', requireAdminApiKey, updateUser);
 app.get('/api/admin/users/:userId/preview', requireAdminApiKey, previewPrompt);
+
+// Voice management
+app.get('/api/admin/voices/lookup', requireAdminApiKey, lookupVoice);
+app.post('/api/admin/voices/preview', requireAdminApiKey, previewVoice);
 
 /**
  * Root endpoint
