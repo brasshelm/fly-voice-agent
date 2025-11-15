@@ -12,6 +12,7 @@ import { handleTwilioStream } from './services/twilio-handler.js';
 import { getMetrics } from './services/metrics.js';
 import { testConnection } from './db/neon.js';
 import { logger } from './utils/logger.js';
+import { handleTwilioRouter } from './api/twilio/router.js';
 
 const serverLogger = logger.child('SERVER');
 
@@ -20,6 +21,7 @@ const PORT = process.env.PORT || 8080;
 
 // Middleware
 app.use(express.json());
+app.use(express.urlencoded({ extended: true })); // For Twilio form data
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -102,6 +104,14 @@ app.get('/metrics', (req, res) => {
 });
 
 /**
+ * Twilio Router endpoint
+ * Smart router that handles all incoming Twilio calls
+ * - +14374282102: Hangs up immediately
+ * - All other numbers: Routes to voice agent stream
+ */
+app.post('/api/twilio/router', handleTwilioRouter);
+
+/**
  * Root endpoint
  */
 app.get('/', (req, res) => {
@@ -113,6 +123,7 @@ app.get('/', (req, res) => {
       health: '/health',
       health_detailed: '/health/detailed',
       metrics: '/metrics (requires API key)',
+      twilio_router: '/api/twilio/router',
       websocket: 'wss://[your-app].fly.dev/stream',
     },
   });
