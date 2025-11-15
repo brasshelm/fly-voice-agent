@@ -76,12 +76,32 @@ export async function previewVoice(req, res) {
     });
 
     const cartesia = new CartesiaService();
-    const audioBuffer = await cartesia.generateAudio(previewText, voiceId);
+    const audioResponse = await cartesia.generateAudio(previewText, voiceId);
+
+    // Convert Cartesia response to Buffer
+    let audioBuffer;
+    if (Buffer.isBuffer(audioResponse)) {
+      audioBuffer = audioResponse;
+    } else if (audioResponse instanceof ArrayBuffer) {
+      audioBuffer = Buffer.from(audioResponse);
+    } else if (audioResponse.audio) {
+      // Response might have .audio property
+      audioBuffer = Buffer.isBuffer(audioResponse.audio)
+        ? audioResponse.audio
+        : Buffer.from(audioResponse.audio);
+    } else {
+      voicesLogger.error('Unexpected audio format', { type: typeof audioResponse });
+      throw new Error('Unexpected audio format from Cartesia');
+    }
 
     // Return audio as base64 for easy embedding in browser
     const base64Audio = audioBuffer.toString('base64');
 
-    voicesLogger.info('Voice preview generated', { voiceId });
+    voicesLogger.info('Voice preview generated', {
+      voiceId,
+      audioSize: audioBuffer.length,
+      base64Size: base64Audio.length,
+    });
 
     res.json({
       audio: base64Audio,
