@@ -6,19 +6,21 @@
 import { DEMO_TEMPLATE } from '../prompts/templates/demo-template.js';
 import { CLIENT_TEMPLATE } from '../prompts/templates/client-template.js';
 import { logger } from '../utils/logger.js';
+import { getDemoRequestByPhone } from '../db/queries.js';
 
 const promptLogger = logger.child('PROMPT');
 
 // Demo phone number
-const DEMO_PHONE_NUMBER = '+18443874488';
+const DEMO_PHONE_NUMBER = '+17753767929';
 
 /**
  * Build a custom prompt from template using user configuration
  * @param {Object} userConfig - User configuration from database
  * @param {string} templateType - 'demo' or 'client' (optional, auto-detects from phone)
- * @returns {string} Customized prompt
+ * @param {string} callerNumber - Caller's phone number (optional, for demo industry lookup)
+ * @returns {Promise<string>} Customized prompt
  */
-export function buildPrompt(userConfig, templateType = null) {
+export async function buildPrompt(userConfig, templateType = null, callerNumber = null) {
   // Auto-detect template type if not specified
   if (!templateType) {
     templateType = userConfig.twilio_phone_number === DEMO_PHONE_NUMBER ? 'demo' : 'client';
@@ -33,8 +35,28 @@ export function buildPrompt(userConfig, templateType = null) {
     userConfig.business_name || 'our company'
   );
 
-  // Replace industry
-  prompt = prompt.replace(/{{INDUSTRY}}/g, userConfig.industry || 'service');
+  // Replace industry - for demo calls, look up from database
+  let industry = userConfig.industry || 'service';
+
+  if (templateType === 'demo' && callerNumber) {
+    promptLogger.info('Looking up industry for demo caller', { callerNumber });
+    const demoRequest = await getDemoRequestByPhone(callerNumber);
+
+    if (demoRequest && demoRequest.industry_slug) {
+      industry = demoRequest.industry_slug;
+      promptLogger.info('Using caller-specific industry', {
+        callerNumber,
+        industry
+      });
+    } else {
+      promptLogger.info('No demo request found, using default industry', {
+        callerNumber,
+        defaultIndustry: industry
+      });
+    }
+  }
+
+  prompt = prompt.replace(/{{INDUSTRY}}/g, industry);
 
   // Replace service types (format as list)
   const serviceTypesList = Array.isArray(userConfig.service_types)

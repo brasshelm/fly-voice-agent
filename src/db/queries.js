@@ -140,3 +140,42 @@ export async function updateRecordingUrl(twilioCallSid, recordingUrl) {
     throw error;
   }
 }
+
+/**
+ * Get demo request by phone number (for dynamic industry lookup)
+ * @param {string} phoneNumber - Caller's phone number
+ * @returns {Promise<Object|null>} Demo request with industry_slug, or null if not found
+ */
+export async function getDemoRequestByPhone(phoneNumber) {
+  try {
+    dbLogger.info('Looking up demo request by phone', { phone: phoneNumber });
+
+    const result = await sql`
+      SELECT industry_slug, requested_at
+      FROM leadsaveai.demo_requests
+      WHERE phone_number = ${phoneNumber}
+      ORDER BY requested_at DESC
+      LIMIT 1
+    `;
+
+    if (result.length === 0) {
+      dbLogger.info('No demo request found for phone number', { phone: phoneNumber });
+      return null;
+    }
+
+    const demoRequest = result[0];
+    dbLogger.info('Demo request found', {
+      phone: phoneNumber,
+      industry: demoRequest.industry_slug,
+      requestedAt: demoRequest.requested_at,
+    });
+
+    return demoRequest;
+  } catch (error) {
+    dbLogger.error('Error fetching demo request by phone', error, {
+      phone: phoneNumber,
+    });
+    // Return null instead of throwing - demo lookup is optional
+    return null;
+  }
+}

@@ -1,7 +1,8 @@
 /**
  * Demo prompt template for LeadSaveAI demonstration calls
- * Used for +18443874488 (demo number)
+ * Used for +17753767929 (demo number)
  * Uses {{VARIABLES}} that get replaced with actual user config
+ * Dynamically looks up caller's industry from demo_requests table
  */
 
 export const DEMO_TEMPLATE = `You are the AI assistant for {{BUSINESS_NAME}}, demonstrating our {{INDUSTRY}} platform.

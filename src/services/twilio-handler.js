@@ -84,8 +84,8 @@ export async function handleTwilioStream(ws) {
       // Track call start
       onCallStart(userId);
 
-      // Build custom prompt
-      customPrompt = buildPrompt(userConfig);
+      // Build custom prompt (async - looks up demo caller's industry if applicable)
+      customPrompt = await buildPrompt(userConfig, null, callerNumber);
       customPrompt = insertPhoneNumber(customPrompt, callerNumber);
 
       // Initialize system message
