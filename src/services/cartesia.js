@@ -273,6 +273,7 @@ export class CartesiaService {
           encoding: 'pcm_mulaw',
           sample_rate: 8000,
         },
+        WebSocket: WebSocket, // Provide WebSocket implementation for partysocket
       });
 
       await websocket.connect();
