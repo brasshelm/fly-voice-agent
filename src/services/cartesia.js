@@ -102,16 +102,16 @@ export class CartesiaService {
 
       const apiStartTime = Date.now();
       const response = await this.client.tts.bytes({
-        model_id: 'sonic-english',
+        modelId: 'sonic-turbo', // Upgraded from sonic-english (old) to sonic-turbo (40ms TTFB)
         transcript: text,
         voice: {
           mode: 'id',
           id: voiceId || this.defaultVoiceId,
         },
-        output_format: {
+        outputFormat: { // Updated from output_format (camelCase now)
           container: 'raw',
           encoding: 'pcm_mulaw',
-          sample_rate: 8000,
+          sampleRate: 8000, // Updated from sample_rate
         },
       });
       const apiEndTime = Date.now();
@@ -171,16 +171,16 @@ export class CartesiaService {
       });
 
       const response = await this.client.tts.bytes({
-        model_id: 'sonic-english',
+        modelId: 'sonic-turbo', // Upgraded from sonic-english (old) to sonic-turbo (40ms TTFB)
         transcript: text,
         voice: {
           mode: 'id',
           id: voiceId || this.defaultVoiceId,
         },
-        output_format: {
+        outputFormat: { // Updated from output_format (camelCase now)
           container: 'raw',
           encoding: 'pcm_s16le',  // 16-bit signed PCM (uncompressed)
-          sample_rate: 44100,      // CD quality (44.1kHz)
+          sampleRate: 44100,      // CD quality (44.1kHz) - Updated from sample_rate
         },
       });
 
@@ -223,15 +223,15 @@ export class CartesiaService {
   async startStream(onAudio, onError) {
     try {
       const websocket = this.client.tts.websocket({
-        model_id: 'sonic-english',
+        modelId: 'sonic-turbo', // Upgraded from sonic-english (old) to sonic-turbo (40ms TTFB)
         voice: {
           mode: 'id',
           id: this.defaultVoiceId,
         },
-        output_format: {
+        outputFormat: { // Updated from output_format (camelCase now)
           container: 'raw',
           encoding: 'pcm_mulaw',
-          sample_rate: 8000,
+          sampleRate: 8000, // Updated from sample_rate
         },
       });
 
