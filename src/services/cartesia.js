@@ -102,16 +102,16 @@ export class CartesiaService {
 
       const apiStartTime = Date.now();
       const response = await this.client.tts.bytes({
-        modelId: 'sonic-turbo', // Upgraded from sonic-english (old) to sonic-turbo (40ms TTFB)
+        modelId: 'sonic-3', // LATEST model (Oct 2025) - high naturalness, industry-leading latency
         transcript: text,
         voice: {
           mode: 'id',
           id: voiceId || this.defaultVoiceId,
         },
-        outputFormat: { // Updated from output_format (camelCase now)
+        outputFormat: {
           container: 'raw',
           encoding: 'pcm_mulaw',
-          sampleRate: 8000, // Updated from sample_rate
+          sampleRate: 8000,
         },
       });
       const apiEndTime = Date.now();
@@ -171,16 +171,16 @@ export class CartesiaService {
       });
 
       const response = await this.client.tts.bytes({
-        modelId: 'sonic-turbo', // Upgraded from sonic-english (old) to sonic-turbo (40ms TTFB)
+        modelId: 'sonic-3', // LATEST model (Oct 2025) - high naturalness, industry-leading latency
         transcript: text,
         voice: {
           mode: 'id',
           id: voiceId || this.defaultVoiceId,
         },
-        outputFormat: { // Updated from output_format (camelCase now)
+        outputFormat: {
           container: 'raw',
           encoding: 'pcm_s16le',  // 16-bit signed PCM (uncompressed)
-          sampleRate: 44100,      // CD quality (44.1kHz) - Updated from sample_rate
+          sampleRate: 44100,      // CD quality (44.1kHz)
         },
       });
 
@@ -223,15 +223,15 @@ export class CartesiaService {
   async startStream(onAudio, onError) {
     try {
       const websocket = this.client.tts.websocket({
-        modelId: 'sonic-turbo', // Upgraded from sonic-english (old) to sonic-turbo (40ms TTFB)
+        modelId: 'sonic-3', // LATEST model (Oct 2025) - high naturalness, industry-leading latency
         voice: {
           mode: 'id',
           id: this.defaultVoiceId,
         },
-        outputFormat: { // Updated from output_format (camelCase now)
+        outputFormat: {
           container: 'raw',
           encoding: 'pcm_mulaw',
-          sampleRate: 8000, // Updated from sample_rate
+          sampleRate: 8000,
         },
       });
 
