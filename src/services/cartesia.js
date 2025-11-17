@@ -135,10 +135,8 @@ export class CartesiaService {
         bufferSize: audioBuffer.length,
       });
 
-      // Mix with background office ambience
-      const mixedAudio = mixWithAmbience(audioBuffer, 0.08);
-
-      return mixedAudio;
+      // Return pure TTS audio (background ambience disabled due to quality issues)
+      return audioBuffer;
     } catch (error) {
       cartesiaLogger.error('Error generating audio', error, {
         text: text.substring(0, 50) + '...',
