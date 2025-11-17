@@ -58,6 +58,7 @@ export async function handleTwilioStream(ws) {
   let deepgram = null;
   let deepgramConnection = null;
   let cartesia = null;
+  let cartesiaConnection = null;
   let llmRouter = null;
 
   // Metrics
