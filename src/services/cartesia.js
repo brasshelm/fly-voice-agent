@@ -92,12 +92,15 @@ export class CartesiaService {
    * @returns {Promise<Buffer>} Audio buffer (mulaw, 8kHz)
    */
   async generateAudio(text, voiceId = null) {
+    const startTime = Date.now();
+
     try {
       cartesiaLogger.debug('Generating audio', {
         textLength: text.length,
         voiceId: voiceId || this.defaultVoiceId,
       });
 
+      const apiStartTime = Date.now();
       const response = await this.client.tts.bytes({
         model_id: 'sonic-english',
         transcript: text,
@@ -111,8 +114,10 @@ export class CartesiaService {
           sample_rate: 8000,
         },
       });
+      const apiEndTime = Date.now();
 
       // Extract audio buffer from response (handle multiple API response formats)
+      const extractStartTime = Date.now();
       let audioBuffer;
       if (Buffer.isBuffer(response)) {
         // Format 1: Response is already a Buffer (older SDK version)
@@ -129,10 +134,17 @@ export class CartesiaService {
       } else {
         throw new Error('Cartesia response is empty or invalid format');
       }
+      const extractEndTime = Date.now();
 
-      cartesiaLogger.debug('Audio generated successfully', {
+      const totalTime = Date.now() - startTime;
+
+      cartesiaLogger.info('Audio generated - detailed timing', {
         textLength: text.length,
         bufferSize: audioBuffer.length,
+        apiLatency: `${apiEndTime - apiStartTime}ms`,
+        extractionLatency: `${extractEndTime - extractStartTime}ms`,
+        totalLatency: `${totalTime}ms`,
+        msPerCharacter: (totalTime / text.length).toFixed(1),
       });
 
       // Return pure TTS audio (background ambience disabled due to quality issues)

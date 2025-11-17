@@ -45,11 +45,14 @@ function generateHangupTwiML() {
 /**
  * Generate TwiML for connecting to voice agent stream
  */
-function generateStreamTwiML() {
+function generateStreamTwiML(to, from) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Connect>
-    <Stream url="${STREAM_URL}" />
+    <Stream url="${STREAM_URL}">
+      <Parameter name="To" value="${xmlEscape(to)}" />
+      <Parameter name="From" value="${xmlEscape(from)}" />
+    </Stream>
   </Connect>
   <Pause length="60"/>
 </Response>`;
@@ -59,12 +62,12 @@ function generateStreamTwiML() {
  * Generate TwiML for playing ringback tone then redirecting
  */
 function generateRingbackTwiML(redirectUrl) {
-  const ringbackUrl = process.env.RINGBACK_URL || 'https://gincvicclrzfhkhi.public.blob.vercel-storage.com/ringback.wav';
-  const loops = 5; // 5 seconds (assumes 1-second WAV)
+  // New ringback pattern: 2s ring, 4s silence, 2s ring (North American standard)
+  const ringbackUrl = process.env.RINGBACK_URL || 'https://fly-voice-agent-red-darkness-2650.fly.dev/public/ringback-pattern.wav';
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Play loop="${loops}">${xmlEscape(ringbackUrl)}</Play>
+  <Play>${xmlEscape(ringbackUrl)}</Play>
   <Redirect method="POST">${xmlEscape(redirectUrl)}</Redirect>
 </Response>`;
 }
@@ -107,7 +110,7 @@ export function handleTwilioRouter(req, res) {
     });
 
     res.type('text/xml');
-    return res.send(generateStreamTwiML());
+    return res.send(generateStreamTwiML(To, From));
   }
 
   // Phase 1: Play ringback tone, then redirect to stream

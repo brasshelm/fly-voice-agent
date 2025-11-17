@@ -8,6 +8,8 @@
 
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { WebSocketServer } from 'ws';
 import { handleTwilioStream } from './services/twilio-handler.js';
 import { getMetrics } from './services/metrics.js';
@@ -19,6 +21,9 @@ import { getPrompts, updateDemoTemplate, updateClientTemplate, updateDemoFallbac
 import { getGreetings, updateGreetings } from './api/admin/greetings.js';
 import { getUsers, getUser, updateUser, previewPrompt } from './api/admin/users.js';
 import { lookupVoice, previewVoice } from './api/admin/voices.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const serverLogger = logger.child('SERVER');
 
@@ -40,6 +45,9 @@ app.use(cors({
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); // For Twilio form data
+
+// Serve static files from public directory (audio files for ringback, ambience, etc.)
+app.use('/public', express.static(path.join(__dirname, '../public')));
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -97,26 +105,7 @@ app.get('/health/detailed', async (req, res) => {
  * Metrics API endpoint (protected)
  * For admin dashboard to query system metrics
  */
-app.get('/metrics', (req, res) => {
-  // Verify API key
-  const apiKey = req.headers['x-api-key'];
-
-  if (!process.env.METRICS_API_KEY) {
-    serverLogger.warn('METRICS_API_KEY not set - metrics endpoint disabled');
-    return res.status(503).json({
-      error: 'Metrics endpoint not configured',
-    });
-  }
-
-  if (apiKey !== process.env.METRICS_API_KEY) {
-    serverLogger.warn('Unauthorized metrics access attempt', {
-      ip: req.ip,
-    });
-    return res.status(401).json({
-      error: 'Unauthorized',
-    });
-  }
-
+app.get('/metrics', requireAdminApiKey, (req, res) => {
   const metrics = getMetrics();
   res.json(metrics);
 });
