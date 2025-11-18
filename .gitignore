@@ -10,3 +10,7 @@ yarn-error.log
 .idea/
 dist/
 build/
+
+# Ignore all markdown except README
+*.md
+!README.md
