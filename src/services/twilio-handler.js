@@ -167,6 +167,10 @@ export async function handleTwilioStream(ws) {
       const voiceId = userConfig?.ai_voice_id || null;
       cartesiaConnection = await cartesia.connect(voiceId);
 
+      // CRITICAL: Wait for SDK's onopen handler to execute (fixes microtask race condition)
+      // The connect() Promise resolves before the SDK sets its internal _isConnected flag
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       twilioLogger.info('Services initialized', {
         callSid,
         sttProvider: 'Deepgram',
