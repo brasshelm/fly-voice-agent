@@ -280,6 +280,160 @@ body {
 }
 
 /* ============================================
+   HOW IT WORKS FLOW DIAGRAM
+   ============================================ */
+.flow-section {
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  padding-top: 2rem;
+  margin-bottom: 2rem;
+}
+
+.flow-section h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  color: #ffffff;
+  text-align: center;
+}
+
+.flow-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  position: relative;
+  padding: 1rem 0;
+}
+
+.flow-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  min-width: 90px;
+  transition: all 0.3s ease;
+}
+
+.flow-step:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.flow-icon {
+  font-size: 1.75rem;
+}
+
+.flow-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.flow-desc {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.7);
+  text-align: center;
+}
+
+.flow-arrow {
+  width: 24px;
+  height: 24px;
+  color: rgba(255, 255, 255, 0.5);
+  flex-shrink: 0;
+}
+
+.flow-arrow svg {
+  width: 100%;
+  height: 100%;
+}
+
+.flow-dot {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #8b5cf6;
+  border-radius: 50%;
+  box-shadow: 0 0 15px #8b5cf6, 0 0 30px rgba(139, 92, 246, 0.5);
+  animation: flowTravel 4s ease-in-out infinite;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+@keyframes flowTravel {
+  0% {
+    left: 5%;
+    opacity: 0;
+  }
+  5% {
+    opacity: 1;
+  }
+  25% {
+    left: 30%;
+  }
+  50% {
+    left: 55%;
+  }
+  75% {
+    left: 80%;
+  }
+  95% {
+    opacity: 1;
+  }
+  100% {
+    left: 95%;
+    opacity: 0;
+  }
+}
+
+.flow-caption {
+  text-align: center;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: 1rem;
+  font-style: italic;
+}
+
+/* Responsive flow */
+@media (max-width: 600px) {
+  .flow-container {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .flow-step {
+    width: 100%;
+    max-width: 200px;
+    flex-direction: row;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+  }
+
+  .flow-icon {
+    font-size: 1.5rem;
+  }
+
+  .flow-step > div:not(.flow-icon) {
+    text-align: left;
+  }
+
+  .flow-arrow {
+    transform: rotate(90deg);
+    width: 20px;
+    height: 20px;
+  }
+
+  .flow-dot {
+    display: none;
+  }
+}
+
+/* ============================================
    ARCHITECTURE SECTION
    ============================================ */
 .architecture-section {
