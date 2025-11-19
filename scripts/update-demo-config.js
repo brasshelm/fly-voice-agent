@@ -18,35 +18,52 @@ async function updateDemoConfig() {
   console.log('Updating demo phone number configuration...\n');
 
   try {
-    const result = await sql`
-      UPDATE leadsaveai.user_voice_config
-      SET
-        business_name = 'LeadSaveAI',
-        industry = 'ai-voice-automation',
-        service_types = '["AI receptionist"]',
-        business_qa = ${JSON.stringify(businessQA)}
+    // First, get the user_id for the phone number
+    const user = await sql`
+      SELECT user_id
+      FROM leadsaveai.users
       WHERE twilio_phone_number = '+17753767929'
-      RETURNING
-        business_name,
-        industry,
-        service_types,
-        business_qa,
-        twilio_phone_number
     `;
 
-    if (result.length === 0) {
-      console.error('❌ No rows updated - phone number not found');
+    if (user.length === 0) {
+      console.error('❌ No user found for phone number +17753767929');
       process.exit(1);
     }
 
-    console.log('✅ Demo config updated successfully!\n');
+    const userId = user[0].user_id;
+    console.log('Found user:', userId);
+
+    // Update the business_config table (where the actual data lives)
+    const result = await sql`
+      UPDATE leadsaveai.business_config
+      SET
+        business_name = 'LeadSaveAI',
+        industry = 'ai-voice-automation',
+        services_offered = '["AI receptionist"]',
+        common_faqs = ${JSON.stringify(businessQA)}
+      WHERE user_id = ${userId}
+      RETURNING
+        business_name,
+        industry,
+        services_offered,
+        common_faqs
+    `;
+
+    if (result.length === 0) {
+      console.error('❌ No rows updated - business_config not found for user');
+      process.exit(1);
+    }
+
+    console.log('\n✅ Demo config updated successfully!\n');
     console.log('Business Name:', result[0].business_name);
     console.log('Industry:', result[0].industry);
-    console.log('Service Types:', result[0].service_types);
-    console.log('Business Q&A:', JSON.stringify(JSON.parse(result[0].business_qa), null, 2));
+    console.log('Service Types:', result[0].services_offered);
+    console.log('\nBusiness Q&A:');
+    console.log(JSON.stringify(JSON.parse(result[0].common_faqs), null, 2));
 
   } catch (error) {
     console.error('❌ Error updating config:', error.message);
+    console.error(error.stack);
     process.exit(1);
   }
 
