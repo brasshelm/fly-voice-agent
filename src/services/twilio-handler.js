@@ -453,10 +453,52 @@ export async function handleTwilioStream(ws) {
             provider: response.provider,
           });
         } else {
-          twilioLogger.debug('Response contained only function calls, no text to speak', {
+          // Function call but no text - ask user to repeat
+          const fallbackResponses = [
+            "Sorry, I didn't quite catch that. Can you say that again?",
+            "I missed that - could you repeat it?",
+            "Didn't hear you clearly. Mind saying that once more?",
+            "Can you repeat that? I didn't get it.",
+            "Sorry, what was that? Say it again for me?",
+          ];
+          const fallbackText = fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)];
+
+          twilioLogger.info('🔁 FUNCTION-ONLY RESPONSE - ASKING FOR REPEAT', {
             callSid,
+            fallbackText,
+            reason: 'LLM provided function call but no conversational text',
           });
+
+          messages.push({
+            role: 'assistant',
+            content: fallbackText,
+          });
+
+          await sendAIResponse(fallbackText);
         }
+      } else if (response.functionCall) {
+        // Function call with NO content at all - ask user to repeat
+        const fallbackResponses = [
+          "Sorry, I didn't quite catch that. Can you say that again?",
+          "I missed that - could you repeat it?",
+          "Didn't hear you clearly. Mind saying that once more?",
+          "Can you repeat that? I didn't get it.",
+          "Sorry, what was that? Say it again for me?",
+        ];
+        const fallbackText = fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)];
+
+        twilioLogger.info('🔁 FUNCTION-ONLY RESPONSE - ASKING FOR REPEAT', {
+          callSid,
+          fallbackText,
+          reason: 'LLM provided function call but no content',
+        });
+
+        messages.push({
+          role: 'assistant',
+          content: fallbackText,
+        });
+
+        await sendAIResponse(fallbackText);
       }
     } catch (error) {
       twilioLogger.error('Error processing transcript', error);
