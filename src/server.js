@@ -142,9 +142,16 @@ app.get('/api/admin/voices/lookup', requireAdminApiKey, lookupVoice);
 app.post('/api/admin/voices/preview', requireAdminApiKey, previewVoice);
 
 /**
- * Root endpoint
+ * Root endpoint - Serve demo page
  */
 app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/demo.html'));
+});
+
+/**
+ * API info endpoint (for reference)
+ */
+app.get('/api', (req, res) => {
   res.json({
     name: 'Voice Agent - Fly.io',
     version: '1.0.0',

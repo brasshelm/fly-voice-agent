@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LeadSaveAI Voice Agent Demo - Cameron O'Brien</title>
+  <link rel="icon" type="image/svg+xml" href="/public/favicon.svg">
+  <link rel="stylesheet" href="demo.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1 class="title">LeadSaveAI Voice Agent</h1>
+      <p class="tagline">AI-powered phone receptionist that never misses a call</p>
+    </header>
+
+    <main class="main">
+      <!-- Demo Call Section -->
+      <div class="demo-card">
+        <div class="demo-section">
+          <h2>Try It Live</h2>
+          <p class="demo-intro">Call our demo number to experience the AI voice agent in action. It will walk you through how LeadSaveAI works and answer your questions.</p>
+
+          <button class="btn btn-primary" id="revealPhoneBtn">
+            <span class="btn-text">Call Demo Number →</span>
+          </button>
+
+          <div class="phone-revealed" id="phoneRevealed"></div>
+        </div>
+
+        <!-- How It's Built Section -->
+        <div class="architecture-section">
+          <h3>How It's Built</h3>
+          <p class="architecture-intro">
+            A real-time voice pipeline powered by best-in-class APIs, orchestrated on Fly.io infrastructure.
+          </p>
+
+          <div class="tech-stack">
+            <div class="tech-item">
+              <div class="tech-icon">🎙️</div>
+              <div class="tech-content">
+                <strong>Twilio Media Streams</strong>
+                <span>Real-time audio streaming over WebSocket</span>
+              </div>
+            </div>
+
+            <div class="tech-item">
+              <div class="tech-icon">👂</div>
+              <div class="tech-content">
+                <strong>Deepgram</strong>
+                <span>Speech-to-text transcription (~200ms latency)</span>
+              </div>
+            </div>
+
+            <div class="tech-item">
+              <div class="tech-icon">🧠</div>
+              <div class="tech-content">
+                <strong>Groq (Llama 3.3 70B)</strong>
+                <span>Ultra-fast LLM responses (~1 second)</span>
+              </div>
+            </div>
+
+            <div class="tech-item">
+              <div class="tech-icon">🗣️</div>
+              <div class="tech-content">
+                <strong>Cartesia (Sonic 3)</strong>
+                <span>Natural text-to-speech (~400ms TTFB)</span>
+              </div>
+            </div>
+
+            <div class="tech-item">
+              <div class="tech-icon">🗄️</div>
+              <div class="tech-content">
+                <strong>Neon PostgreSQL</strong>
+                <span>Business context and Q&A knowledge base</span>
+              </div>
+            </div>
+
+            <div class="tech-item">
+              <div class="tech-icon">🚀</div>
+              <div class="tech-content">
+                <strong>Fly.io</strong>
+                <span>Auto-scaling serverless deployment</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- What It Does Section -->
+        <div class="value-prop">
+          <h3>What It Does</h3>
+          <div class="benefits">
+            <div class="benefit">
+              <strong>24/7 Coverage</strong>
+              <span>Never miss another after-hours or overflow call</span>
+            </div>
+            <div class="benefit">
+              <strong>Natural Conversation</strong>
+              <span>Sounds human, collects information like a receptionist</span>
+            </div>
+            <div class="benefit">
+              <strong>Instant Transcripts</strong>
+              <span>Get call summaries via email or SMS in real-time</span>
+            </div>
+            <div class="benefit">
+              <strong>Business Context</strong>
+              <span>Answers questions about your services using your website data</span>
+            </div>
+            <div class="benefit">
+              <strong>Spam Filtering</strong>
+              <span>Identifies and filters spam calls automatically</span>
+            </div>
+            <div class="benefit">
+              <strong>Fast Setup</strong>
+              <span>2 minutes: enter website, forward number, turn on</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Performance Metrics -->
+        <div class="metrics-section">
+          <h3>Performance</h3>
+          <div class="metrics">
+            <div class="metric">
+              <div class="metric-value">~1s</div>
+              <div class="metric-label">Total Response Latency</div>
+            </div>
+            <div class="metric">
+              <div class="metric-value">8kHz</div>
+              <div class="metric-label">Audio Quality (PCM mu-law)</div>
+            </div>
+            <div class="metric">
+              <div class="metric-value">Direct WS</div>
+              <div class="metric-label">No SDK overhead</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <a href="https://leadsaveai.com" target="_blank" rel="noopener">
+        Learn More at LeadSaveAI.com →
+      </a>
+    </footer>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toastContainer"></div>
+
+  <script src="demo.js"></script>
+</body>
+</html>
