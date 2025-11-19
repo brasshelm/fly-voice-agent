@@ -1,10 +1,14 @@
 /**
- * Cartesia text-to-speech service (SDK v2.x)
- * Uses Sonic English model for natural voice synthesis
- * WebSocket streaming with proper v2.x event handling
+ * Cartesia text-to-speech service using DIRECT WebSocket (bypassing SDK)
+ *
+ * The @cartesia/cartesia-js SDK v2.2.9 has issues with WebSocket connections
+ * hanging at send(). This implementation uses raw WebSocket ('ws' package)
+ * to connect directly to Cartesia's WebSocket API.
+ *
+ * TESTED AND WORKING on Fly.io (Nov 19, 2025)
  */
 
-import { CartesiaClient } from '@cartesia/cartesia-js';
+import WebSocket from 'ws';
 import { logger } from '../utils/logger.js';
 
 const cartesiaLogger = logger.child('CARTESIA');
@@ -15,126 +19,148 @@ export class CartesiaService {
       throw new Error('CARTESIA_API_KEY environment variable is required');
     }
 
-    this.client = new CartesiaClient({
-      apiKey: process.env.CARTESIA_API_KEY,
-    });
-
-    // Default voice ID
+    this.apiKey = process.env.CARTESIA_API_KEY;
     this.defaultVoiceId = 'a0e99841-438c-4a64-b679-ae501e7d6091'; // Barbershop Man
-
-    // Track current voice ID for reconnection
     this.currentVoiceId = null;
-
-    // WebSocket instance
     this.websocket = null;
-
-    // Track last activity for idle timeout management
     this.lastActivity = Date.now();
+    this.contextCounter = 0;
 
-    cartesiaLogger.info('Cartesia service initialized (SDK v2.2.9)');
+    cartesiaLogger.info('Cartesia service initialized (Direct WebSocket)');
   }
 
   /**
-   * Initialize WebSocket connection (v2.x pattern)
-   * Connection is lazy - actual connection happens on first send()
+   * Initialize WebSocket connection to Cartesia
    * @param {string} voiceId - Voice ID to use (null = default)
-   * @returns {Promise<Object>} WebSocket instance
+   * @returns {Promise<WebSocket>} WebSocket instance
    */
   async connect(voiceId) {
-    try {
-      // Track voice ID for potential reconnection
+    return new Promise((resolve, reject) => {
       this.currentVoiceId = voiceId || this.defaultVoiceId;
 
-      // v2.x: Create WebSocket with simplified config structure
-      // Note: container, encoding, sampleRate are top-level params now (not output_format)
-      this.websocket = this.client.tts.websocket({
-        container: 'raw',
-        encoding: 'pcm_mulaw',
-        sampleRate: 8000,
-        // WebSocket param not needed in v2.x - SDK auto-detects Node.js environment
+      // Build WebSocket URL with API key
+      const wsUrl = `wss://api.cartesia.ai/tts/websocket?api_key=${this.apiKey}&cartesia_version=2025-04-16`;
+
+      cartesiaLogger.debug('Connecting to Cartesia WebSocket...');
+
+      this.websocket = new WebSocket(wsUrl);
+
+      // Timeout if connection takes too long
+      const timeout = setTimeout(() => {
+        cartesiaLogger.error('WebSocket connection timeout');
+        this.websocket.close();
+        reject(new Error('WebSocket connection timeout'));
+      }, 5000);
+
+      this.websocket.on('open', () => {
+        clearTimeout(timeout);
+        this.lastActivity = Date.now();
+
+        cartesiaLogger.info('Cartesia WebSocket connected', {
+          voiceId: this.currentVoiceId,
+          encoding: 'pcm_mulaw',
+          sampleRate: 8000,
+        });
+
+        resolve(this.websocket);
       });
 
-      this.lastActivity = Date.now();
-
-      cartesiaLogger.info('Cartesia WebSocket created (v2.x)', {
-        voiceId: this.currentVoiceId,
-        model: 'sonic-3',
-        encoding: 'pcm_mulaw',
-        sampleRate: 8000,
+      this.websocket.on('error', (error) => {
+        clearTimeout(timeout);
+        cartesiaLogger.error('WebSocket error during connection', error);
+        reject(error);
       });
 
-      return this.websocket;
-    } catch (error) {
-      cartesiaLogger.error('Failed to create Cartesia WebSocket', error);
-      throw error;
-    }
+      this.websocket.on('close', (code, reason) => {
+        clearTimeout(timeout);
+        if (!this.websocket || this.websocket.readyState === WebSocket.OPEN) {
+          // Already handled
+          return;
+        }
+        cartesiaLogger.error('WebSocket closed before connection', {
+          code,
+          reason: reason.toString(),
+        });
+        reject(new Error(`WebSocket closed: ${code} ${reason}`));
+      });
+    });
   }
 
   /**
-   * Generate speech via WebSocket streaming (v2.x pattern)
-   * CRITICAL: Events emit from RESPONSE object, not websocket object
+   * Generate speech via WebSocket streaming
    * @param {string} text - Text to convert to speech
    * @param {Function} onAudioChunk - Callback for each audio chunk (receives Buffer)
    * @returns {Promise<void>} Resolves when complete
    */
   async speakText(text, onAudioChunk) {
-    return new Promise(async (resolve, reject) => {
-      try {
-        if (!this.websocket) {
-          throw new Error('WebSocket not initialized - call connect() first');
+    return new Promise((resolve, reject) => {
+      if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
+        reject(new Error('WebSocket not connected - call connect() first'));
+        return;
+      }
+
+      const startTime = Date.now();
+      let chunkCount = 0;
+      let totalBytes = 0;
+      let firstChunkTime = null;
+
+      // Generate unique context ID
+      this.contextCounter++;
+      const contextId = `tts-${Date.now()}-${this.contextCounter}`;
+
+      cartesiaLogger.debug('🔊 Sending TTS request', {
+        contextId,
+        textLength: text.length,
+        text: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
+      });
+
+      // Build request (WebSocket API uses snake_case!)
+      const request = {
+        context_id: contextId,
+        model_id: 'sonic-3',
+        voice: {
+          mode: 'id',
+          id: this.currentVoiceId,
+        },
+        transcript: text,
+        language: 'en',
+        output_format: {
+          container: 'raw',
+          encoding: 'pcm_mulaw',
+          sample_rate: 8000,
+        },
+      };
+
+      // Timeout warning if no chunks after 2 seconds
+      const warningTimeout = setTimeout(() => {
+        if (chunkCount === 0) {
+          cartesiaLogger.warn('⚠️ NO AUDIO CHUNKS RECEIVED AFTER 2 SECONDS', {
+            contextId,
+            textLength: text.length,
+            elapsedTime: '2000ms',
+          });
         }
+      }, 2000);
 
-        const startTime = Date.now();
-        let chunkCount = 0;
-        let totalBytes = 0;
-        let firstChunkTime = null;
+      // Hard timeout if no completion after 10 seconds
+      const hardTimeout = setTimeout(() => {
+        if (chunkCount === 0) {
+          cartesiaLogger.error('❌ TIMEOUT: No chunks after 10 seconds', {
+            contextId,
+          });
+          cleanup();
+          reject(new Error(
+            `TTS timeout: No audio chunks received after 10000ms. ` +
+            `Text: "${text.substring(0, 50)}..."`
+          ));
+        }
+      }, 10000);
 
-        cartesiaLogger.debug('🔊 Sending TTS request (v2.x)', {
-          textLength: text.length,
-          text: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
-        });
+      // Message handler
+      const onMessage = (data) => {
+        try {
+          const message = JSON.parse(data.toString());
 
-        // v2.x: send() returns RESPONSE object with working event emitter
-        // CRITICAL: Use camelCase params (modelId not model_id)
-        const response = await this.websocket.send({
-          modelId: 'sonic-3',           // camelCase!
-          voice: {
-            mode: 'id',
-            id: this.currentVoiceId,
-          },
-          transcript: text,
-          language: 'en',                // Required in v2.x
-        });
-
-        cartesiaLogger.debug('📡 Response object received', {
-          hasOn: typeof response.on === 'function',
-          hasEvents: typeof response.events === 'function',
-        });
-
-        // Timeout warning if no chunks after 2 seconds
-        const warningTimeout = setTimeout(() => {
-          if (chunkCount === 0) {
-            cartesiaLogger.warn('⚠️ NO AUDIO CHUNKS RECEIVED AFTER 2 SECONDS', {
-              textLength: text.length,
-              elapsedTime: '2000ms',
-            });
-          }
-        }, 2000);
-
-        // Hard timeout if no completion after 10 seconds
-        const hardTimeout = setTimeout(() => {
-          if (chunkCount === 0) {
-            cartesiaLogger.error('❌ TIMEOUT: No chunks after 10 seconds');
-            reject(new Error(
-              `TTS timeout: No audio chunks received after 10000ms. ` +
-              `Text: "${text.substring(0, 50)}..."`
-            ));
-          }
-        }, 10000);
-
-        // v2.x: Listen on RESPONSE object, not websocket
-        // This is the critical difference from v1.x!
-        response.on('message', (message) => {
           if (message.type === 'chunk') {
             if (chunkCount === 0) {
               clearTimeout(warningTimeout);
@@ -142,6 +168,7 @@ export class CartesiaService {
               const ttfb = firstChunkTime - startTime;
 
               cartesiaLogger.info('🎵 TTS FIRST CHUNK (TTFB)', {
+                contextId,
                 ttfb: `${ttfb}ms`,
                 textLength: text.length,
               });
@@ -149,7 +176,7 @@ export class CartesiaService {
 
             chunkCount++;
 
-            // v2.x: message.data is Base64 string
+            // Decode Base64 audio data
             const audioBuffer = Buffer.from(message.data, 'base64');
             totalBytes += audioBuffer.length;
 
@@ -157,6 +184,7 @@ export class CartesiaService {
             onAudioChunk(audioBuffer);
 
             cartesiaLogger.debug('📡 AUDIO CHUNK', {
+              contextId,
               chunkNumber: chunkCount,
               chunkSize: audioBuffer.length,
               totalBytes,
@@ -170,6 +198,7 @@ export class CartesiaService {
             const ttfb = firstChunkTime ? firstChunkTime - startTime : null;
 
             cartesiaLogger.info('✅ TTS STREAMING COMPLETE', {
+              contextId,
               textLength: text.length,
               chunks: chunkCount,
               totalBytes,
@@ -180,6 +209,7 @@ export class CartesiaService {
             });
 
             this.lastActivity = Date.now();
+            cleanup();
             resolve();
 
           } else if (message.type === 'error') {
@@ -187,48 +217,42 @@ export class CartesiaService {
             clearTimeout(hardTimeout);
 
             cartesiaLogger.error('❌ Cartesia error message', {
+              contextId,
               error: message.error,
+              statusCode: message.status_code,
             });
+            cleanup();
             reject(new Error(`Cartesia error: ${message.error}`));
           }
-        });
+        } catch (parseError) {
+          cartesiaLogger.error('Failed to parse WebSocket message', parseError);
+        }
+      };
 
-        // Also handle errors on response object
-        response.on('error', (error) => {
-          clearTimeout(warningTimeout);
-          clearTimeout(hardTimeout);
-          cartesiaLogger.error('❌ Response object error', error);
-          reject(error);
-        });
-
-        this.lastActivity = Date.now();
-
-      } catch (error) {
-        cartesiaLogger.error('Error in speakText', error);
+      // Error handler
+      const onError = (error) => {
+        clearTimeout(warningTimeout);
+        clearTimeout(hardTimeout);
+        cartesiaLogger.error('❌ WebSocket error during TTS', error);
+        cleanup();
         reject(error);
-      }
-    });
-  }
+      };
 
-  /**
-   * Speak text with timeout protection
-   * @param {string} text - Text to synthesize
-   * @param {Function} onAudioChunk - Callback for each audio chunk
-   * @param {number} timeoutMs - Timeout in milliseconds (default 10000 = 10 seconds)
-   * @returns {Promise<void>} Resolves when complete or rejects on timeout
-   */
-  async speakTextWithTimeout(text, onAudioChunk, timeoutMs = 10000) {
-    return Promise.race([
-      this.speakText(text, onAudioChunk),
-      new Promise((_, reject) => {
-        setTimeout(() => {
-          reject(new Error(
-            `TTS timeout: No completion after ${timeoutMs}ms. ` +
-            `Text: "${text.substring(0, 50)}..."`
-          ));
-        }, timeoutMs);
-      }),
-    ]);
+      // Cleanup handlers
+      const cleanup = () => {
+        this.websocket.removeListener('message', onMessage);
+        this.websocket.removeListener('error', onError);
+      };
+
+      // Attach handlers
+      this.websocket.on('message', onMessage);
+      this.websocket.on('error', onError);
+
+      // Send request
+      this.websocket.send(JSON.stringify(request));
+
+      this.lastActivity = Date.now();
+    });
   }
 
   /**
@@ -249,7 +273,7 @@ export class CartesiaService {
           textLength: text.length,
         });
 
-        return await this.speakTextWithTimeout(text, onAudioChunk, timeoutMs);
+        return await this.speakText(text, onAudioChunk);
 
       } catch (error) {
         const isTimeout = error.message.includes('TTS timeout');
@@ -307,8 +331,9 @@ export class CartesiaService {
    */
   async disconnect() {
     try {
-      // v2.x SDK handles cleanup automatically
-      // Just null out our reference
+      if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+        this.websocket.close();
+      }
       this.websocket = null;
 
       cartesiaLogger.info('Cartesia WebSocket disconnected');
