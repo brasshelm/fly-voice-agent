@@ -364,53 +364,9 @@ body {
 
 .flow-step:hover {
   background: rgba(255, 255, 255, 0.2);
-  transform: translateY(-5px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
-  border-color: rgba(255, 255, 255, 0.4);
-}
-
-/* Tooltip */
-.flow-step::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  bottom: calc(100% + 12px);
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(255, 255, 255, 0.95);
-  color: #1f2937;
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  font-size: 0.8rem;
-  line-height: 1.4;
-  width: 220px;
-  text-align: center;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-  opacity: 0;
-  visibility: hidden;
-  transition: all 0.3s ease;
-  pointer-events: none;
-  z-index: 100;
-}
-
-/* Tooltip arrow */
-.flow-step::before {
-  content: '';
-  position: absolute;
-  bottom: calc(100% + 4px);
-  left: 50%;
-  transform: translateX(-50%);
-  border: 6px solid transparent;
-  border-top-color: rgba(255, 255, 255, 0.95);
-  opacity: 0;
-  visibility: hidden;
-  transition: all 0.3s ease;
-  z-index: 100;
-}
-
-.flow-step:hover::after,
-.flow-step:hover::before {
-  opacity: 1;
-  visibility: visible;
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 .flow-icon {
@@ -509,19 +465,6 @@ body {
     flex-direction: row;
     gap: 0.75rem;
     padding: 0.75rem 1rem;
-  }
-
-  .flow-step::after {
-    bottom: auto;
-    top: calc(100% + 8px);
-    width: 180px;
-  }
-
-  .flow-step::before {
-    bottom: auto;
-    top: calc(100% + 0px);
-    border-top-color: transparent;
-    border-bottom-color: rgba(255, 255, 255, 0.95);
   }
 
   .flow-icon {
