@@ -2,7 +2,15 @@
 
 > Multi-tenant voice AI platform with real-time conversation capabilities
 
-A production-ready voice AI platform deployed on Fly.io that provides intelligent voice conversations using speech-to-text (Deepgram), AI reasoning (Groq/Gemini), and text-to-speech (Cartesia). Features auto-scaling, multi-tenant architecture, and webhook integrations.
+**Live Demo:** https://voice-agent.cameronobrien.dev
+
+A production-ready voice AI platform deployed on Fly.io that provides intelligent phone conversations using Twilio Media Streams, speech-to-text (Deepgram), AI reasoning (Groq), and text-to-speech (Cartesia). Features auto-scaling, multi-tenant architecture, and webhook integrations.
+
+## Demo
+
+Try the live demo at **https://voice-agent.cameronobrien.dev**
+
+Click to reveal the demo phone number and call to experience the AI voice agent in action. The agent demonstrates natural conversation, information collection, and real-time responses.
 
 ## Tech Stack
 
