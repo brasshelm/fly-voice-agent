@@ -232,24 +232,25 @@ export async function handleTwilioStream(ws) {
 
   /**
    * Initialize services and user config
-   * Plays ringback audio FIRST to keep connection alive, then initializes services in parallel
+   * NEW FLOW: Plays ringback FIRST, initializes Deepgram during ringback,
+   * then connects Cartesia AFTER ringback completes (prevents WebSocket idle timeout)
    */
   async function initialize(twilioNumber, callerNumber) {
     try {
       const initStartTime = Date.now();
 
-      // STEP 1: Send ringback audio immediately (non-blocking, plays for ~8 seconds)
       twilioLogger.info('Starting initialization with ringback', {
         callSid,
         twilioNumber,
         callerNumber,
       });
 
-      // Start ringback playback (runs in parallel with initialization)
+      // STEP 1: Send ringback audio immediately (non-blocking, plays for ~8 seconds)
       const ringbackPromise = sendRingbackAudio();
 
-      // STEP 2: Initialize everything in parallel while ringback plays
-      twilioLogger.info('Initializing services while ringback plays', { callSid });
+      // STEP 2: Initialize NON-TTS services while ringback plays
+      // (Deepgram can handle idle time, Cartesia cannot)
+      twilioLogger.info('Initializing database and Deepgram while ringback plays', { callSid });
 
       // Fetch user configuration from database
       userConfig = await getUserByPhone(twilioNumber);
@@ -274,48 +275,58 @@ export async function handleTwilioStream(ws) {
         content: customPrompt,
       });
 
-      // Initialize services
+      // Initialize Deepgram and LLM router (can be idle without issues)
       deepgram = new DeepgramService();
-      cartesia = new CartesiaService();
       llmRouter = new LLMRouter();
 
-      // Start Deepgram stream (STT)
+      // Start Deepgram stream (STT) - can start listening early
       deepgramConnection = await deepgram.startStream(
         onTranscript,
         onDeepgramError
       );
 
-      // Connect to Cartesia WebSocket (TTS)
-      const voiceId = userConfig?.ai_voice_id || null;
-      cartesiaConnection = await cartesia.connect(voiceId);
+      const preRingbackEndTime = Date.now();
+      const preRingbackDuration = preRingbackEndTime - initStartTime;
 
-      // CRITICAL: Wait for SDK's onopen handler to execute (fixes microtask race condition)
-      // The connect() Promise resolves before the SDK sets its internal _isConnected flag
-      // Increased to 300ms to ensure WebSocket is fully ready to send data
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      const initEndTime = Date.now();
-      const initDuration = initEndTime - initStartTime;
-
-      twilioLogger.info('Services initialized', {
+      twilioLogger.info('Non-TTS services initialized', {
         callSid,
         sttProvider: 'Deepgram',
-        ttsProvider: 'Cartesia WebSocket',
-        ttsVoiceId: voiceId || 'default',
-        initDuration: `${initDuration}ms`,
+        duration: `${preRingbackDuration}ms`,
       });
 
-      // STEP 3: Wait for ringback to finish before sending greeting
+      // STEP 3: Wait for ringback to finish
       await ringbackPromise;
 
-      twilioLogger.info('Ringback complete, sending greeting', {
+      twilioLogger.info('Ringback complete, NOW connecting Cartesia (fresh connection)', {
         callSid,
-        totalInitTime: `${Date.now() - initStartTime}ms`,
+        ringbackDuration: `${Date.now() - initStartTime}ms`,
       });
 
-      // Get and send initial greeting (customizable or fallback)
+      // STEP 4: Connect to Cartesia WebSocket NOW (fresh connection, used immediately)
+      const voiceId = userConfig?.ai_voice_id || null;
+      cartesia = new CartesiaService();
+      cartesiaConnection = await cartesia.connect(voiceId);
+
+      // Wait for SDK's onopen handler to execute (fixes microtask race condition)
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      const cartesiaConnectedTime = Date.now();
+      twilioLogger.info('Cartesia connected and ready', {
+        callSid,
+        ttsProvider: 'Cartesia WebSocket',
+        ttsVoiceId: voiceId || 'default',
+        connectionTime: `${cartesiaConnectedTime - preRingbackEndTime}ms`,
+        totalInitTime: `${cartesiaConnectedTime - initStartTime}ms`,
+      });
+
+      // STEP 5: Immediately send greeting (no idle time!)
       const greeting = await getInitialGreeting(userConfig, callerNumber);
       await sendAIResponse(greeting);
+
+      twilioLogger.info('✅ Call initialization complete', {
+        callSid,
+        totalTime: `${Date.now() - initStartTime}ms`,
+      });
     } catch (error) {
       twilioLogger.error('Failed to initialize call', error);
       ws.close();
@@ -484,7 +495,7 @@ export async function handleTwilioStream(ws) {
   }
 
   /**
-   * Send AI response via TTS (WebSocket streaming)
+   * Send AI response via TTS (WebSocket streaming with automatic retry)
    */
   async function sendAIResponse(text) {
     try {
@@ -494,7 +505,7 @@ export async function handleTwilioStream(ws) {
         text: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
         textLength: text.length,
         voiceId: userConfig?.ai_voice_id || 'default',
-        method: 'websocket-streaming',
+        method: 'websocket-streaming-with-retry',
       });
 
       // Add to transcript
@@ -504,8 +515,9 @@ export async function handleTwilioStream(ws) {
         timestamp: new Date().toISOString(),
       });
 
-      // Speak text and send audio chunks to Twilio (with 10s timeout protection)
-      await cartesia.speakTextWithTimeout(text, (audioChunk) => {
+      // Speak text with automatic retry if timeout occurs
+      // Will reconnect WebSocket and try once more if first attempt fails
+      await cartesia.speakTextWithRetry(text, (audioChunk) => {
         // Send audio chunk to Twilio (streaming)
         const base64Audio = audioChunk.toString('base64');
         ws.send(
@@ -517,7 +529,7 @@ export async function handleTwilioStream(ws) {
             },
           })
         );
-      }, 10000); // 10 second timeout
+      }, 1, 10000); // maxRetries=1, timeout=10000ms
     } catch (error) {
       twilioLogger.error('Error in sendAIResponse', error);
       throw error;

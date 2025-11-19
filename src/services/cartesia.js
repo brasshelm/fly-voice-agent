@@ -84,6 +84,9 @@ export class CartesiaService {
     // Default voice ID - you can customize this per user if needed
     this.defaultVoiceId = 'a0e99841-438c-4a64-b679-ae501e7d6091'; // Barbershop Man
 
+    // Track current voice ID for reconnection
+    this.currentVoiceId = null;
+
     cartesiaLogger.info('Cartesia service initialized');
   }
 
@@ -259,11 +262,14 @@ export class CartesiaService {
    */
   async connect(voiceId) {
     try {
+      // Track voice ID for potential reconnection
+      this.currentVoiceId = voiceId || this.defaultVoiceId;
+
       this.websocket = this.client.tts.websocket({
         model_id: 'sonic-3', // LATEST model (Oct 2025) - high naturalness, industry-leading latency
         voice: {
           mode: 'id',
-          id: voiceId || this.defaultVoiceId,
+          id: this.currentVoiceId,
         },
         output_format: {
           container: 'raw',
@@ -276,7 +282,7 @@ export class CartesiaService {
       await this.websocket.connect({ WebSocket: WebSocket });
 
       cartesiaLogger.info('Cartesia WebSocket connected', {
-        voiceId: voiceId || this.defaultVoiceId,
+        voiceId: this.currentVoiceId,
         model: 'sonic-3',
         encoding: 'pcm_mulaw',
         sampleRate: 8000,
@@ -404,6 +410,66 @@ export class CartesiaService {
         }, timeoutMs);
       })
     ]);
+  }
+
+  /**
+   * Speak text with automatic retry on failure
+   * If TTS times out, reconnects WebSocket and tries once more
+   * @param {string} text - Text to synthesize
+   * @param {Function} onAudioChunk - Callback for each audio chunk
+   * @param {number} maxRetries - Maximum number of retry attempts (default 1)
+   * @param {number} timeoutMs - Timeout in milliseconds (default 10000 = 10 seconds)
+   * @returns {Promise<void>} Resolves when audio is complete or rejects after all retries fail
+   */
+  async speakTextWithRetry(text, onAudioChunk, maxRetries = 1, timeoutMs = 10000) {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        cartesiaLogger.debug('TTS attempt', {
+          attempt: attempt + 1,
+          maxAttempts: maxRetries + 1,
+          textLength: text.length,
+        });
+
+        return await this.speakTextWithTimeout(text, onAudioChunk, timeoutMs);
+      } catch (error) {
+        const isTimeout = error.message.includes('TTS timeout');
+        const shouldRetry = attempt < maxRetries && isTimeout;
+
+        if (shouldRetry) {
+          cartesiaLogger.warn('🔄 TTS TIMEOUT - RECONNECTING AND RETRYING', {
+            attempt: attempt + 1,
+            maxRetries,
+            error: error.message,
+            textPreview: text.substring(0, 50) + '...',
+          });
+
+          try {
+            // Reconnect WebSocket
+            await this.disconnect();
+            await new Promise(resolve => setTimeout(resolve, 100)); // Brief pause before reconnect
+            await this.connect(this.currentVoiceId);
+            await new Promise(resolve => setTimeout(resolve, 300)); // SDK ready delay
+
+            cartesiaLogger.info('✅ Cartesia reconnected successfully, retrying TTS', {
+              attempt: attempt + 2,
+            });
+
+            continue; // Try again
+          } catch (reconnectError) {
+            cartesiaLogger.error('❌ Failed to reconnect Cartesia', reconnectError);
+            throw reconnectError; // Give up if reconnection fails
+          }
+        }
+
+        // No more retries or non-timeout error
+        cartesiaLogger.error('❌ TTS FAILED - NO MORE RETRIES', {
+          attempt: attempt + 1,
+          error: error.message,
+          isTimeout,
+        });
+        throw error;
+      }
+    }
   }
 
   /**
