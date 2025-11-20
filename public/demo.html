@@ -8,6 +8,12 @@
   <link rel="stylesheet" href="/public/demo.css">
 </head>
 <body>
+  <!-- Dynamic Navigation -->
+  <nav class="site-nav">
+    <a href="https://cameronobrien.dev" class="nav-btn" id="portfolioBtn">Back to Portfolio</a>
+    <a href="https://github.com/cameronobriendev" class="nav-btn" id="githubBtn">See my Github</a>
+  </nav>
+
   <div class="container">
     <header class="header">
       <h1 class="title">Voice Agent Demo</h1>
@@ -170,8 +176,15 @@
           <div class="challenges">
             <div class="challenge">
               <div class="challenge-header">
-                <strong>TTS Request Queuing</strong>
+                <strong>Context Window Growth</strong>
                 <span class="challenge-status status-progress">In Progress</span>
+              </div>
+              <p>Conversation history grows with each turn (user message + AI response + tool results), increasing token count from ~1,200 to ~2,500+ over 4-5 turns. This causes latency creep and will eventually hit context limits. Solution: implement sliding window or conversation summarization to maintain consistent performance over longer calls.</p>
+            </div>
+            <div class="challenge">
+              <div class="challenge-header">
+                <strong>TTS Request Queuing</strong>
+                <span class="challenge-status status-resolved">Resolved</span>
               </div>
               <p>Concurrent TTS requests were hitting Cartesia's WebSocket connection limit (max 2), causing audio failures. Solution: added <code>queueSpeakText()</code> method in <code>cartesia.js</code> that processes TTS requests sequentially, preventing rate limit errors.</p>
             </div>
@@ -212,5 +225,19 @@
   <div id="toastContainer"></div>
 
   <script src="/public/demo.js"></script>
+  <script>
+    // Dynamic nav text based on referrer
+    (function() {
+      const referrer = document.referrer.toLowerCase();
+      const portfolioBtn = document.getElementById('portfolioBtn');
+      const githubBtn = document.getElementById('githubBtn');
+
+      if (referrer.includes('github.com')) {
+        portfolioBtn.textContent = 'See my Portfolio';
+        githubBtn.textContent = 'Back to Github';
+      }
+      // Default (from portfolio or direct) keeps: "Back to Portfolio" / "See my Github"
+    })();
+  </script>
 </body>
 </html>

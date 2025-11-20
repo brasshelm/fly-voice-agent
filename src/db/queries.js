@@ -17,9 +17,23 @@ export async function getUserByPhone(twilioNumber) {
   try {
     dbLogger.info('Looking up user by phone', { phone: twilioNumber });
 
+    // Query tables directly instead of broken view
+    // The view was aggregating all users' data together
     const result = await sql(`
-      SELECT * FROM ${SCHEMA}.user_voice_config
-      WHERE twilio_phone_number = $1
+      SELECT
+        u.user_id,
+        u.twilio_phone_number,
+        bc.business_name,
+        bc.industry,
+        bc.services_offered AS service_types,
+        bc.common_faqs AS business_qa,
+        bc.ai_voice_id,
+        bc.client_greeting,
+        bc.demo_greeting,
+        bc.demo_fallback_greeting
+      FROM ${SCHEMA}.users u
+      JOIN ${SCHEMA}.business_config bc ON u.user_id = bc.user_id
+      WHERE u.twilio_phone_number = $1
       LIMIT 1
     `, [twilioNumber]);
 

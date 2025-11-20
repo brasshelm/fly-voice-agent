@@ -30,15 +30,18 @@ export class DeepgramService {
         model: 'nova-2',
         language: 'en-US',
         smart_format: true,
-        interim_results: false,
+        interim_results: true,   // REQUIRED for utterance_end_ms
         punctuate: true,
         encoding: 'mulaw',
         sample_rate: 8000,
         channels: 1,
-        // Utterance boundary detection - wait for silence before marking speech complete
-        utterance_end_ms: 1000,  // 1 second of silence = end of utterance
-        endpointing: 300,        // 300ms endpoint detection threshold
+        // Utterance boundary detection
+        utterance_end_ms: 1000,  // 1 second of silence = end of utterance (fallback)
+        endpointing: 400,        // 400ms VAD-based endpoint detection (balance speed vs interruptions)
       });
+
+      // Accumulate transcript segments until speech is complete
+      let transcriptSegments = [];
 
       connection.on(LiveTranscriptionEvents.Open, () => {
         deepgramLogger.info('Deepgram connection opened');
@@ -64,26 +67,47 @@ export class DeepgramService {
           alternatives: data.channel?.alternatives?.length || 0,
         });
 
-        // Only process when we have text AND speech is truly final
-        // speechFinal indicates the user has stopped speaking (silence detected)
-        // isFinal alone just means Deepgram is confident about THIS chunk
-        if (transcript && transcript.length > 0 && speechFinal) {
-          deepgramLogger.info('✅ STT FINAL TRANSCRIPT', {
-            text: transcript,
+        // Accumulate finalized transcript segments
+        if (transcript && transcript.length > 0 && isFinal) {
+          transcriptSegments.push(transcript);
+
+          deepgramLogger.debug('📝 ACCUMULATED SEGMENT', {
+            segment: transcript,
+            totalSegments: transcriptSegments.length,
+            speechFinal,
+          });
+        }
+
+        // When speech is complete, join all segments and process
+        if (speechFinal && transcriptSegments.length > 0) {
+          const completeUtterance = transcriptSegments.join(' ');
+
+          deepgramLogger.info('✅ STT COMPLETE UTTERANCE', {
+            text: completeUtterance,
+            segments: transcriptSegments.length,
             confidence: confidence?.toFixed(3) || 'N/A',
             confidencePercent: confidence ? `${(confidence * 100).toFixed(1)}%` : 'N/A',
             duration: `${data.duration}s`,
-            isFinal,
-            speechFinal,
           });
-          onTranscript(transcript);
-        } else if (transcript && transcript.length > 0 && !speechFinal) {
-          // Log partial transcripts but don't process them
-          deepgramLogger.debug('⏳ PARTIAL TRANSCRIPT (waiting for speechFinal)', {
-            text: transcript,
-            isFinal,
-            speechFinal,
+
+          onTranscript(completeUtterance);
+          transcriptSegments = [];  // Reset for next utterance
+        }
+      });
+
+      // Fallback: UtteranceEnd event for noisy environments
+      connection.on(LiveTranscriptionEvents.UtteranceEnd, (data) => {
+        if (transcriptSegments.length > 0) {
+          const completeUtterance = transcriptSegments.join(' ');
+
+          deepgramLogger.info('✅ STT UTTERANCE END (fallback)', {
+            text: completeUtterance,
+            segments: transcriptSegments.length,
+            lastWordEnd: data.last_word_end,
           });
+
+          onTranscript(completeUtterance);
+          transcriptSegments = [];
         }
       });
 

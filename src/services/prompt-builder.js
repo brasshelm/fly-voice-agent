@@ -70,8 +70,19 @@ export async function buildPrompt(userConfig, templateType = null, callerNumber 
     userConfig.callback_window || 'soon'
   );
 
+  // Parse business_qa if it's a string (JSON from database)
+  let businessQA = userConfig.business_qa;
+  if (typeof businessQA === 'string') {
+    try {
+      businessQA = JSON.parse(businessQA);
+    } catch (e) {
+      promptLogger.warn('Failed to parse business_qa JSON', { error: e.message });
+      businessQA = {};
+    }
+  }
+
   // Build Q&A section
-  const qaSection = buildQASection(userConfig.business_qa);
+  const qaSection = buildQASection(businessQA);
   prompt = prompt.replace(/{{BUSINESS_QA}}/g, qaSection);
 
   // Note: {{PHONE}} will be replaced during the call with actual caller's number
@@ -82,7 +93,7 @@ export async function buildPrompt(userConfig, templateType = null, callerNumber 
     businessName: userConfig.business_name,
     industry: userConfig.industry,
     serviceTypesCount: userConfig.service_types?.length || 0,
-    qaCount: Object.keys(userConfig.business_qa || {}).length,
+    qaCount: Object.keys(businessQA || {}).length,
   });
 
   return prompt;
