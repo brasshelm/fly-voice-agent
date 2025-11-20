@@ -1,16 +1,10 @@
 /* ============================================
    SITE NAVIGATION (Floating)
    ============================================ */
-.site-nav {
+.nav-btn {
   position: fixed;
   top: 20px;
-  left: 20px;
   z-index: 1000;
-  display: flex;
-  gap: 10px;
-}
-
-.nav-btn {
   background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -22,8 +16,15 @@
   font-size: 0.875rem;
   font-weight: 500;
   transition: all 0.3s ease;
-  position: relative;
   overflow: hidden;
+}
+
+.nav-btn-left {
+  left: 20px;
+}
+
+.nav-btn-right {
+  right: 20px;
 }
 
 .nav-btn::before {
@@ -48,14 +49,8 @@
 }
 
 @media (max-width: 600px) {
-  .site-nav {
-    flex-direction: column;
-    gap: 8px;
-  }
-
   .nav-btn {
-    font-size: 0.75rem;
-    padding: 6px 12px;
+    display: none;
   }
 }
 
