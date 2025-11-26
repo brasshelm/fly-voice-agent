@@ -372,8 +372,10 @@ export async function handleTwilioStream(ws) {
       });
 
       // Get LLM response with timing
+      // Demo calls don't use tools (faster response, no data capture needed)
+      const isDemoCall = userConfig.twilio_phone_number === process.env.DEMO_PHONE_NUMBER;
       const llmStartTime = Date.now();
-      const response = await llmRouter.chat(messages, callSid, TOOLS);
+      const response = await llmRouter.chat(messages, callSid, isDemoCall ? null : TOOLS);
       const llmEndTime = Date.now();
 
       llmCalls++;
